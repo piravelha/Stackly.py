@@ -42,6 +42,10 @@ def lex(file: str, code: str) -> list[Token]:
       line += 1
       code = code[1:]
       continue
+    if c := re.findall(r"^(;.*)", code):
+      col += len(c[0])
+      code = code[len(c[0]):]
+      continue
     loc = Location(file, line, col)
     if n := re.findall(int_p, code):
       col += len(n[0])

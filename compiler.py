@@ -1,4 +1,4 @@
-from parser import parse_expr, Tree, TreeType
+from parsing import parse_expr, Tree, TreeType
 from lexer import lex
 from typechecker import typecheck
 
@@ -37,40 +37,12 @@ def compile(code, tree: Tree, stack="stack"):
     code += "    }\n"
     code += f"    {stack}.Push({a})\n"
     return code
-  if tree.type == TreeType.Add:
-    code += f"    {stack}.Add()\n"
-    return code
-  if tree.type == TreeType.Sub:
-    code += f"    {stack}.Sub()\n"
-    return code
-  if tree.type == TreeType.Lt:
-    code += f"    {stack}.Lt()\n"
-    return code
-  if tree.type == TreeType.Eq:
-    code += f"    {stack}.Eq()\n"
-    return code
-  if tree.type == TreeType.Cons:
-    code += f"    {stack}.Cons()\n"
-    return code
-  if tree.type == TreeType.Print:
-    code += f"    {stack}.Print()\n"
-    return code
-  if tree.type == TreeType.Dup:
-    code += f"    {stack}.Dup()\n"
-    return code
-  if tree.type == TreeType.If:
-    code += f"    {stack}.If()\n"
-    return code
-  if tree.type == TreeType.While:
-    code += f"    {stack}.While()\n"
-    return code
-  if tree.type == TreeType.Eval:
-    code += f"    {stack}.Eval()\n"
-    return code
   if tree.type == TreeType.Expr:
     for node in tree.nodes:
       code = compile(code, node, stack)
     return code
+  name = tree.type.name
+  code += f"    {stack}.{name}()\n"
   return code
 
 def compile_source_code(file, source_code: str):

@@ -9,9 +9,15 @@ class TreeType(Enum):
   PushList = auto()
   Add = auto()
   Sub = auto()
+  Mul = auto()
+  Div = auto()
   Cons = auto()
   Lt = auto()
+  Gt = auto()
+  Lte = auto()
+  Gte = auto()
   Eq = auto()
+  Not = auto()
   PushQuote = auto()
   Eval = auto()
   Print = auto()
@@ -63,12 +69,24 @@ def parse_atom(tokens):
       return Tree(TreeType.Add, [], first.location), tokens[1:]
     if first.value == "-":
       return Tree(TreeType.Sub, [], first.location), tokens[1:]
+    if first.value == "*":
+      return Tree(TreeType.Mul, [], first.location), tokens[1:]
+    if first.value == "/":
+      return Tree(TreeType.Div, [], first.location), tokens[1:]
     if first.value == "<:":
       return Tree(TreeType.Cons, [], first.location), tokens[1:]
     if first.value == "<":
       return Tree(TreeType.Lt, [], first.location), tokens[1:]
+    if first.value == ">":
+      return Tree(TreeType.Gt, [], first.location), tokens[1:]
+    if first.value == "<=":
+      return Tree(TreeType.Lte, [], first.location), tokens[1:]
+    if first.value == ">=":
+      return Tree(TreeType.Gte, [], first.location), tokens[1:]
     if first.value == "=":
       return Tree(TreeType.Eq, [], first.location), tokens[1:]
+    if first.value == "not":
+      return Tree(TreeType.Not, [], first.location), tokens[1:]
     if first.value == "~":
       return Tree(TreeType.Eval, [], first.location), tokens[1:]
     if first.value == "print":

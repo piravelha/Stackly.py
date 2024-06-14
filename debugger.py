@@ -1,4 +1,4 @@
-from parser import Tree, TreeType, parse_expr
+from parsing import Tree, TreeType, parse_expr
 from lexer import lex
 from typechecker import typecheck
 import time
@@ -52,6 +52,45 @@ def debug(tree, stack):
     a = stack.pop()
     stack.append(a - b)
     return stack
+  if tree.type == TreeType.Mul:
+    b = stack.pop()
+    a = stack.pop()
+    stack.append(a * b)
+    return stack
+  if tree.type == TreeType.Div:
+    b = stack.pop()
+    a = stack.pop()
+    stack.append(int(a / b))
+    return stack
+  if tree.type == TreeType.Lt:
+    b = stack.pop()
+    a = stack.pop()
+    stack.append(a < b)
+    return stack
+  if tree.type == TreeType.Gt:
+    b = stack.pop()
+    a = stack.pop()
+    stack.append(a > b)
+    return stack
+  if tree.type == TreeType.Lte:
+    b = stack.pop()
+    a = stack.pop()
+    stack.append(a <= b)
+    return stack
+  if tree.type == TreeType.Gte:
+    b = stack.pop()
+    a = stack.pop()
+    stack.append(a >= b)
+    return stack
+  if tree.type == TreeType.Eq:
+    b = stack.pop()
+    a = stack.pop()
+    stack.append(a == b)
+    return stack
+  if tree.type == TreeType.Not:
+    a = stack.pop()
+    stack.append(not a)
+    return stack
   if tree.type == TreeType.Cons:
     b = stack.pop()
     a = stack.pop()
@@ -63,6 +102,29 @@ def debug(tree, stack):
   if tree.type == TreeType.Eval:
     a = stack.pop()
     stack = debug(a, stack)
+    return stack
+  if tree.type == TreeType.Dup:
+    a = stack.pop()
+    stack.append(a)
+    stack.append(a)
+    return stack
+  if tree.type == TreeType.If:
+    c = stack.pop()
+    b = stack.pop()
+    a = stack.pop()
+    if a:
+      stack = debug(b, stack)
+    else:
+      stack = debug(c, stack)
+    return stack
+  if tree.type == TreeType.While:
+    b = stack.pop()
+    a = stack.pop()
+    while True:
+      stack = debug(a, stack)
+      if not stack.pop():
+        break
+      stack = debug(b, stack)
     return stack
   if tree.type == TreeType.Print:
     a = stack.pop()
