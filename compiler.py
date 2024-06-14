@@ -43,6 +43,9 @@ def compile(code, tree: Tree, stack="stack"):
   if tree.type == TreeType.Sub:
     code += f"    {stack}.Sub()\n"
     return code
+  if tree.type == TreeType.Lt:
+    code += f"    {stack}.Lt()\n"
+    return code
   if tree.type == TreeType.Eq:
     code += f"    {stack}.Eq()\n"
     return code
@@ -52,8 +55,15 @@ def compile(code, tree: Tree, stack="stack"):
   if tree.type == TreeType.Print:
     code += f"    {stack}.Print()\n"
     return code
+  if tree.type == TreeType.Dup:
+    code += f"    {stack}.Dup()\n"
+    return code
   if tree.type == TreeType.If:
     code += f"    {stack}.If()\n"
+    return code
+  if tree.type == TreeType.While:
+    code += f"    {stack}.While()\n"
+    return code
   if tree.type == TreeType.Eval:
     code += f"    {stack}.Eval()\n"
     return code

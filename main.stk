@@ -1,7 +1,8 @@
 
-{
-  True
-  {2}
-  {3}
-  if
-} ~ print
+0 {. 10 <} {
+  . print 1 +
+} while
+
+print
+
+

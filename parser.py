@@ -10,13 +10,16 @@ class TreeType(Enum):
   Add = auto()
   Sub = auto()
   Cons = auto()
+  Lt = auto()
   Eq = auto()
   PushQuote = auto()
   Eval = auto()
   Print = auto()
   Expr = auto()
   TypeCast = auto()
+  Dup = auto()
   If = auto()
+  While = auto()
   Noop = auto()
 
 tree_to_name = {
@@ -33,10 +36,16 @@ class Tree:
   nodes: list
   location: Location
   def __repr__(self):
+    if self.type == TreeType.Expr:
+      return "{" + " ".join([str(n) for n in self.nodes]) + "}"
     if not self.nodes:
       if tree_to_name.get(self.type.name):
         return tree_to_name[self.type.name]
       return self.type.name
+    if self.type == TreeType.PushInt:
+      return str(self.nodes[0])
+    if self.type.name.startswith("Push"):
+      return str(self.nodes)[1:-1]
     return f"{self.type.name}{{{self.nodes}}}"
 
 macro_env = {}
@@ -56,6 +65,8 @@ def parse_atom(tokens):
       return Tree(TreeType.Sub, [], first.location), tokens[1:]
     if first.value == "<:":
       return Tree(TreeType.Cons, [], first.location), tokens[1:]
+    if first.value == "<":
+      return Tree(TreeType.Lt, [], first.location), tokens[1:]
     if first.value == "=":
       return Tree(TreeType.Eq, [], first.location), tokens[1:]
     if first.value == "~":
@@ -64,13 +75,13 @@ def parse_atom(tokens):
       return Tree(TreeType.Print, [], first.location), tokens[1:]
     if first.value == "if":
       return Tree(TreeType.If, [], first.location), tokens[1:]
+    if first.value == "while":
+      return Tree(TreeType.While, [], first.location), tokens[1:]
+    if first.value == ".":
+      return Tree(TreeType.Dup, [], first.location), tokens[1:]
     if first.value == "define":
       name = tokens[1]
-      is_ = tokens[2]
-      if is_.value != "as":
-        print(f"{first.location} PARSE ERROR: Unterminated macro declaration")
-        exit(1)
-      body, tokens = parse_expr(tokens[3:])
+      body, tokens = parse_expr(tokens[2:])
       end = tokens[0]
       if end.value != "end":
         print(end.value)

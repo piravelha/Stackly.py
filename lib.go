@@ -44,6 +44,12 @@ func (s *Stack) Eval() {
   a.(func(*Stack))(s)
 }
 
+func (s *Stack) Dup() {
+  a := s.Pop()
+  s.Push(a)
+  s.Push(a)
+}
+
 func (s *Stack) If() {
   c := s.Pop()
   b := s.Pop()
@@ -56,8 +62,29 @@ func (s *Stack) If() {
   s.Eval()
 }
 
+func (s *Stack) While() {
+  b := s.Pop()
+  a := s.Pop()
+  for {
+    s.Push(a)
+    s.Eval()
+    c := s.Pop()
+    if !c.(bool) {
+      break
+    }
+    s.Push(b)
+    s.Eval()
+  }
+}
+
 func (s *Stack) Eq() {
   b := s.Pop()
   a := s.Pop()
   s.Push(a == b)
+}
+
+func (s *Stack) Lt() {
+  b := s.Pop()
+  a := s.Pop()
+  s.Push(a.(int) < b.(int))
 }

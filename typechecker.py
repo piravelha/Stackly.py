@@ -71,10 +71,10 @@ def list_type(elem, loc) -> Type:
     loc,
   )
 
-def quote_type(eff: Effect, loc) -> Type:
+def quote_type(tree, loc) -> Type:
   return Type(
     Kind.Quote,
-    eff,
+    tree,
     loc,
   )
 
@@ -158,16 +158,7 @@ def unify(
       return None, env
     return Type(Kind.List, c, a.location), env
   if a.type == Kind.Quote:
-    a_eff = a.effect
-    b_eff = b.effect
-    eff, env = unify_effects(
-      a_eff,
-      b_eff,
-      env,
-    )
-    if not eff:
-      return None, env
-    return Type(a.type, eff, a.location), env
+    return a, env
   return a, env
 
 def apply_env(type, env):
@@ -370,6 +361,34 @@ def eval_quote(stack, quote):
       stack.append(app)
   return stack
   
+def compare_quotes(tree, stack, quotes, offset=0, self=False):
+  if self:
+    quote = quotes
+    new = typecheck(quote.effect, stack.copy())
+    [new.pop() for _ in range(offset)]
+    for a, b in zip(stack, new):
+      u, env = unify(a, b)
+      if not u:
+        print(f"{b.location} TYPE ERROR: Invalid type when evaluating quotes: expected '{a}', got '{b}'")
+        exit(1)
+    return
+  results = []
+  for quote in quotes:
+    qstack = stack.copy()
+    results.append(typecheck(quote.effect, qstack))
+  first = results[0]
+  for r in results:
+    [r.pop() for _ in range(offset)]
+  for result in results:
+    if len(result) != len(first):
+      qs = "".join(["  " + str(q) + "\n" for q in quotes])
+      print(f"{tree.location} TYPE ERROR: The quotes passed into '{tree}' are not congruent in shape: [\n{qs}]")
+      exit(1)
+    for a, b in zip(first, result):
+      u, env = unify(a, b)
+      if not u:
+        print(f"{b.location} TYPE ERROR: Invalid type when evaluating quotes: expected '{a}', got '{b}'")
+        exit(1)
 
 def typecheck(tree, stack=[]):
   if tree.type == TreeType.Noop:
@@ -407,9 +426,18 @@ def typecheck(tree, stack=[]):
     assert_enough_args(tree, 2, len(stack))
     b = stack.pop()
     a = stack.pop()
-    assert_type(tree, "first", list_type(a, tree.location), b)
+    assert_type(tree, "first", b, list_type(a, tree.location))
     stack.append(b)
     return stack
+  if tree.type == TreeType.Lt:
+    assert_enough_args(tree, 2, len(stack))
+    b = stack.pop()
+    a = stack.pop()
+    assert_type(tree, "first", int_type(tree.location), a)
+    assert_type(tree, "second", int_type(tree.location), b)
+    stack.append(bool_type(tree.location))
+    return stack
+  
   if tree.type == TreeType.Eq:
     assert_enough_args(tree, 2, len(stack))
     b = stack.pop()
@@ -421,6 +449,11 @@ def typecheck(tree, stack=[]):
     assert_enough_args(tree, 1, len(stack))
     stack.pop()
     return stack
+  if tree.type == TreeType.Dup:
+    a = stack.pop()
+    stack.append(a)
+    stack.append(a)
+    return stack
   if tree.type == TreeType.If:
     assert_enough_args(tree, 3, len(stack))
     c = stack.pop()
@@ -430,21 +463,32 @@ def typecheck(tree, stack=[]):
     assert_type(tree, "first", bool_type(tree.location), a)
     assert_type(tree, "second", quote_type(e, tree.location), b)
     assert_type(tree, "third", b, c)
-    stack = eval_quote(stack, b)
+    
+    compare_quotes(tree, stack, [b, c])
+    stack = typecheck(b.effect, stack)
+    return stack
+  if tree.type == TreeType.While:
+    assert_enough_args(tree, 2, len(stack))
+    b = stack.pop()
+    a = stack.pop()
+    assert_type(tree, "first", quote_type(None, tree.location), a)
+    assert_type(tree, "second", quote_type(None, tree.location), b)
+    compare_quotes(tree, stack, b, self=True)
+    compare_quotes(tree, stack, a, offset=1, self=True)
     return stack
   if tree.type == TreeType.PushQuote:
-    effect = effect_of(tree.nodes[0])
-    stack.append(Type(Kind.Quote, effect, tree.location))
+    stack.append(Type(Kind.Quote, tree.nodes[0], tree.location))
     return stack
   if tree.type == TreeType.Eval:
     assert_enough_args(tree, 1, len(stack))
     quote = stack.pop()
-    assert_type(tree, "first", quote_type(Effect([new_multi(tree.location)], [new_multi(tree.location)]), tree.location), quote)
-    stack = eval_quote(stack, quote)
+    assert_type(tree, "first", quote_type(tree, tree.location), quote)
+    stack = typecheck(quote.effect, stack)
     return stack
   if tree.type == TreeType.Expr:
     for node in tree.nodes:
       stack = typecheck(node, stack)
     return stack
+  print(tree)
   assert False
 
