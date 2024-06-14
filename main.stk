@@ -1,6 +1,6 @@
 
-1 {. 1024 <}          ; Condition
-  {. print 2 *}       ; Body
+1 {. 1000000 <}       ; Condition
+  {. print 1 +}       ; Body
   while
 
 print

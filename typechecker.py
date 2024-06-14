@@ -4,6 +4,8 @@ from typing import Union
 from parsing import TreeType
 from lexer import Location
 
+SHOULD_EXIT = True
+
 @dataclass
 class Effect:
   pops: 'list[Type]'
@@ -120,6 +122,7 @@ def unify(
   return a, env
 
 def apply_env(type, env):
+  global SHOULD_EXIT
   if type.type == Kind.Quote:
     pops = []
     for p in type.effect.pops:
@@ -145,25 +148,31 @@ def apply_env(type, env):
   return type
 
 def assert_enough_args(tree, expected, got):
+  global SHOULD_EXIT
   if got < expected:
     print(f"{tree.location} TYPE ERROR: Not enough arguments on the stack for the '{tree.type.name}' operator, expected at least {expected}, got {got}")
-    exit(1)
+    if SHOULD_EXIT: exit(1)
+    else: raise TypeError()
 
 def assert_type(tree, pos, expected, got):
+  global SHOULD_EXIT
   if not unify(got, expected)[0]:
     print(f"{tree.location} TYPE ERROR: Invalid type for the {pos} argument of the '{tree}' operator, expected '{expected}', got '{got}'")
-    exit(1)
+    if SHOULD_EXIT: exit(1)
+    else: raise TypeError()
   
 def compare_quotes(tree, stack, quotes, offset=0, self=False):
+  global SHOULD_EXIT
   if self:
     quote = quotes
     new = typecheck(quote.effect, stack.copy())
     [new.pop() for _ in range(offset)]
     for a, b in zip(stack, new):
-      u, env = unify(a, b)
+      u, _ = unify(a, b)
       if not u:
         print(f"{b.location} TYPE ERROR: Invalid type when evaluating quotes: expected '{a}', got '{b}'")
-        exit(1)
+        if SHOULD_EXIT: exit(1)
+        else: raise TypeError()
     return
   results = []
   for quote in quotes:
@@ -176,14 +185,19 @@ def compare_quotes(tree, stack, quotes, offset=0, self=False):
     if len(result) != len(first):
       qs = "".join(["  " + str(q) + "\n" for q in quotes])
       print(f"{tree.location} TYPE ERROR: The quotes passed into '{tree}' are not congruent in shape: [\n{qs}]")
-      exit(1)
+      if SHOULD_EXIT: exit(1)
+      else: raise TypeError()
     for a, b in zip(first, result):
-      u, env = unify(a, b)
+      u, _ = unify(a, b)
       if not u:
         print(f"{b.location} TYPE ERROR: Invalid type when evaluating quotes: expected '{a}', got '{b}'")
-        exit(1)
+        if SHOULD_EXIT: exit(1)
+        else: raise TypeError()
 
-def typecheck(tree, stack=[]):
+def typecheck(tree, stack=[], should_exit=True):
+  global SHOULD_EXIT
+  if not should_exit:
+    SHOULD_EXIT = False
   if tree.type == TreeType.Noop:
     return stack
   if tree.type == TreeType.PushInt:
@@ -202,7 +216,8 @@ def typecheck(tree, stack=[]):
       c, _ = unify(t, elem)
       if not c:
         print(f"{t.location} TYPE ERROR: Attempting to create a list with different types")
-        exit(1)
+        if SHOULD_EXIT: exit(1)
+        else: raise TypeError()
       elem = c
     stack.append(list_type(elem, tree.location))
     return stack

@@ -105,7 +105,6 @@ def parse_atom(tokens):
         print(end.value)
         print(f"{first.location} PARSE ERROR: Unterminated macro declaration")
         exit(1)
-      
       macro_env[name.value] = body
       return Tree(TreeType.Noop, [], first.location), tokens[1:]
     if macro_env.get(first.value):
@@ -126,7 +125,7 @@ def parse_atom(tokens):
 
 def parse_expr(tokens):
   if not tokens:
-    return Tree(TreeType.Expr, [], Location("", 0, 0))
+    return Tree(TreeType.Expr, [], Location("", 0, 0)), tokens
   first = tokens[0]
   nodes = []
   while tokens:

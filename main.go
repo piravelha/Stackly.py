@@ -1,10 +1,10 @@
 package main
 func main() {
     stack := Stack{[]interface{}{}}
-    stack.Push(0)
+    stack.Push(1)
     quote_0 := func(stack *Stack) {
     stack.Dup()
-    stack.Push(10)
+    stack.Push(1000000)
     stack.Lt()
     }
     stack.Push(quote_0)

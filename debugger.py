@@ -4,8 +4,13 @@ from typechecker import typecheck
 import time
 import os
 
+def value_repr(value):
+    if isinstance(value, list):
+        return "[" + " ".join([str(v) for v in value]) + "]"
+    return repr(value)
+
 def print_stack(stack):
-  padding = 5
+  padding = 3
   lpad = "  "
   if stack:
     max_length = max(len(str(v)) for v in stack) + padding
@@ -17,7 +22,7 @@ def print_stack(stack):
     return print(final)
   reprs = []
   for value in reversed(stack):
-    reprs.append(str(value).center(max_length))
+    reprs.append(value_repr(value).center(max_length))
   final = ""
   for repr in reprs:
     final += lpad + "-" * (max_length + 4) + "\n"
@@ -159,13 +164,14 @@ def debug_program(tree):
     
   print("\n\nProgram finished with no abnormalities")
 
-with open("main.stk") as f:
-  text = f.read()
+if __name__ == "__main__":
+  with open("main.stk") as f:
+    text = f.read()
 
-tokens = lex("main.stk", text)
-tree, _ = parse_expr(tokens)
-stack = typecheck(tree)
-if stack:
-  print(f"{stack.pop().location} TYPE ERROR: Progran finished with unhandled data on the stack")
-  exit(1)
-debug_program(tree)
+  tokens = lex("main.stk", text)
+  tree, _ = parse_expr(tokens)
+  stack = typecheck(tree)
+  if stack:
+    print(f"{stack.pop().location} TYPE ERROR: Progran finished with unhandled data on the stack")
+    exit(1)
+  debug_program(tree)
