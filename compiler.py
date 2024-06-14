@@ -16,33 +16,38 @@ def new_list():
 
 def compile(code, tree: Tree, stack="stack"):
   if tree.type == TreeType.PushInt:
-    code += f"    {stack}.Push({tree.nodes[0]})\n"
+    code += f"    {stack} = append({stack}, {tree.nodes[0]})\n"
     return code
   if tree.type == TreeType.PushBool:
     val = "true" if tree.nodes[0] == "True" else "false"
-    code += f"    {stack}.Push({val})\n"
+    code += f"    {stack} = append({stack}, {val})\n"
     return code
   if tree.type == TreeType.PushChar:
-    code += f"    {stack}.Push('{tree.nodes[0]}')\n"
+    code += f"    {stack} = append({stack}, '{tree.nodes[0]}')\n"
     return code
   if tree.type == TreeType.PushList:
     a = new_list()
-    code += f"    {a} := Stack{{[]interface{{}}{{}}}}\n"
+    code += f"    {a} := []interface{{}}{{}}\n"
     code = compile(code, tree.nodes[0], a)
-    code += f"    {stack}.Push({a})\n"
+    code += f"    {stack} = append({stack}, {a})\n"
   if tree.type == TreeType.PushQuote:
     a = new_quote()
-    code += f"    {a} := func(stack *Stack) {{\n"
+    code += f"    {a} := func({stack} []interface{{}}) []interface{{}} {{\n"
     code = compile(code, tree.nodes[0], stack)
+    code += f"    return {stack}\n"
     code += "    }\n"
-    code += f"    {stack}.Push({a})\n"
+    code += f"    {stack} = append({stack}, ({a}))\n"
+    return code
+  if tree.type == TreeType.PrintType:
     return code
   if tree.type == TreeType.Expr:
     for node in tree.nodes:
       code = compile(code, node, stack)
     return code
+  if tree.type == TreeType.Noop:
+    return code
   name = tree.type.name
-  code += f"    {stack}.{name}()\n"
+  code += f"    {stack} = {name}({stack})\n"
   return code
 
 def compile_source_code(file, source_code: str):
@@ -55,8 +60,9 @@ def compile_source_code(file, source_code: str):
     exit(1)
   code = "package main\n"
   code += "func main() {\n"
-  code += "    stack := Stack{[]interface{}{}}\n"
+  code += "    stack := []interface{}{}\n"
   code = compile(code, tree)
+  code += "    writer.Flush()\n"
   code += "}\n"
   return code
 

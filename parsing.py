@@ -3,38 +3,31 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 class TreeType(Enum):
-  PushInt = auto()
-  PushBool = auto()
-  PushChar = auto()
-  PushList = auto()
-  Add = auto()
-  Sub = auto()
-  Mul = auto()
-  Div = auto()
-  Cons = auto()
-  Lt = auto()
-  Gt = auto()
-  Lte = auto()
-  Gte = auto()
-  Eq = auto()
-  Not = auto()
-  PushQuote = auto()
-  Eval = auto()
-  Print = auto()
-  Expr = auto()
-  TypeCast = auto()
-  Dup = auto()
-  If = auto()
-  While = auto()
-  Noop = auto()
-
-tree_to_name = {
-  "Add": "+",
-  "Sub": "-",
-  "Eq": "=",
-  "Eval": "~",
-  "Print": "print",
-}
+  PushInt = "push int"
+  PushBool = "push bool"
+  PushChar = "push char"
+  PushList = "push list"
+  Add = "+"
+  Sub = "-"
+  Mul = "*"
+  Div = "/"
+  Cons = "<:"
+  Lt = "<"
+  Gt = ">"
+  Lte = "<="
+  Gte = ">="
+  Eq = "="
+  Not = "not"
+  PushQuote = "{}"
+  Eval = "~"
+  Print = "print"
+  Expr = "expression"
+  TypeCast = "::"
+  Dup = "."
+  If = "if"
+  While = "while"
+  Noop = "noop"
+  PrintType = "type?"
 
 @dataclass
 class Tree:
@@ -45,9 +38,7 @@ class Tree:
     if self.type == TreeType.Expr:
       return "{" + " ".join([str(n) for n in self.nodes]) + "}"
     if not self.nodes:
-      if tree_to_name.get(self.type.name):
-        return tree_to_name[self.type.name]
-      return self.type.name
+      return self.type.value
     if self.type == TreeType.PushInt:
       return str(self.nodes[0])
     if self.type.name.startswith("Push"):
@@ -97,26 +88,36 @@ def parse_atom(tokens):
       return Tree(TreeType.While, [], first.location), tokens[1:]
     if first.value == ".":
       return Tree(TreeType.Dup, [], first.location), tokens[1:]
+    if first.value == "type?":
+      return Tree(TreeType.PrintType, [], first.location), tokens[1:]
     if first.value == "define":
       name = tokens[1]
       body, tokens = parse_expr(tokens[2:])
       end = tokens[0]
       if end.value != "end":
-        print(end.value)
         print(f"{first.location} PARSE ERROR: Unterminated macro declaration")
         exit(1)
       macro_env[name.value] = body
       return Tree(TreeType.Noop, [], first.location), tokens[1:]
     if macro_env.get(first.value):
       return macro_env[first.value], tokens[1:]
+    if first.value not in ["define", "end"]:
+      print(f"{first.location} PARSE ERROR: Unknown word: '{first.value}'")
+      exit(1)
   if first.type == TokenType.OpenQuote:
     body, tokens = parse_expr(tokens[1:])
+    if not tokens:
+      print(f"{first.location} PARSE ERROR: Unterminated quote definition")
+      exit(1)
     if tokens[0].type != TokenType.CloseQuote:
       print(f"{first.location} PARSE ERROR: Unterminated quote definition")
       exit(1)
     return Tree(TreeType.PushQuote, [body], first.location), tokens[1:]
   if first.type == TokenType.OpenBracket:
     body, tokens = parse_expr(tokens[1:])
+    if not tokens:
+      print(f"{first.location} PARSE ERROR: Unterminated list definition")
+      exit(1)
     if tokens[0].type != TokenType.CloseBracket:
       print(f"{first.location} PARSE ERROR: Unterminated list definition")
       exit(1)

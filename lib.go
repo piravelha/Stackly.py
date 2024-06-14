@@ -1,125 +1,143 @@
 package main
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
 
-type Stack struct {
-	Elements []interface{}
+var writer = bufio.NewWriter(os.Stdout)
+var print_counter = 0
+
+func Add(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	return append(s[:len(s)-2], a.(int)+b.(int))
 }
 
-func (s *Stack) Push(elem interface{}) {
-	s.Elements = append(s.Elements, elem)
+func Sub(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	return append(s[:len(s)-2], a.(int)-b.(int))
 }
 
-func (s *Stack) Pop() interface{} {
-	popped := s.Elements[len(s.Elements)-1]
-	s.Elements = s.Elements[:len(s.Elements)-1]
-	return popped
+func Mul(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	return append(s[:len(s)-2], a.(int)*b.(int))
 }
 
-func (s *Stack) Add() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) + b.(int))
+func Div(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	return append(s[:len(s)-2], a.(int)/b.(int))
 }
 
-func (s *Stack) Sub() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) - b.(int))
-}
-
-func (s *Stack) Mul() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) * b.(int))
-}
-
-func (s *Stack) Div() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) / b.(int))
-}
-
-func (s *Stack) Print() {
-	a := s.Pop()
-	fmt.Println(a)
-}
-
-func (s *Stack) Cons() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(append([]interface{}{a}, b.(Stack).Elements...))
-}
-
-func (s *Stack) Eval() {
-	a := s.Pop()
-	a.(func(*Stack))(s)
-}
-
-func (s *Stack) Dup() {
-	a := s.Pop()
-	s.Push(a)
-	s.Push(a)
-}
-
-func (s *Stack) If() {
-	c := s.Pop()
-	b := s.Pop()
-	a := s.Pop()
-	if a.(bool) {
-		s.Push(b)
-	} else {
-		s.Push(c)
+func Print(s []interface{}) []interface{} {
+	a := s[len(s)-1]
+	fmt.Fprintf(writer, "%v\n", a)
+	print_counter += 1
+	if print_counter > 100000 {
+		writer.Flush()
+		print_counter = 0
 	}
-	s.Eval()
+	return s[:len(s)-1]
 }
 
-func (s *Stack) While() {
-	b := s.Pop()
-	a := s.Pop()
+func Cons(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	return append(s[:len(s)-2], append([]interface{}{b}, a.([]interface{})...))
+}
+
+func Eval(s []interface{}) []interface{} {
+	a := s[len(s)-1]
+	s = a.(func([]interface{}) []interface{})(s[:len(s)-1])
+	return s
+}
+
+func Dup(s []interface{}) []interface{} {
+	a := s[len(s)-1]
+	s = s[:len(s)-1]
+	s = append(s, a, a)
+	return s
+}
+
+func If(s []interface{}) []interface{} {
+	c := s[len(s)-1]
+	b := s[len(s)-2]
+	a := s[len(s)-3]
+	s = s[:len(s)-3]
+	if a.(bool) {
+		s = append(s, b)
+	} else {
+		s = append(s, c)
+	}
+	s = Eval(s)
+	return s
+}
+
+func While(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	s = s[:len(s)-2]
 	for {
-		s.Push(a)
-		s.Eval()
-		c := s.Pop()
+		s = append(s, a)
+		s = Eval(s)
+		c := s[len(s)-1]
+		s = s[:len(s)-1]
 		if !c.(bool) {
 			break
 		}
-		s.Push(b)
-		s.Eval()
+		s = append(s, b)
+		s = Eval(s)
 	}
+	return s
 }
 
-func (s *Stack) Lt() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) < b.(int))
+func Lt(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	s = s[:len(s)-2]
+	s = append(s, a.(int) < b.(int))
+	return s
 }
 
-func (s *Stack) Gt() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) > b.(int))
+func Gt(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	s = s[:len(s)-2]
+	s = append(s, a.(int) > b.(int))
+	return s
 }
 
-func (s *Stack) Lte() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) <= b.(int))
+func Lte(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	s = s[:len(s)-2]
+	s = append(s, a.(int) <= b.(int))
+	return s
 }
 
-func (s *Stack) Gte() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a.(int) >= b.(int))
+func Gte(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	s = s[:len(s)-2]
+	s = append(s, a.(int) >= b.(int))
+	return s
 }
 
-func (s *Stack) Eq() {
-	b := s.Pop()
-	a := s.Pop()
-	s.Push(a == b)
+func Eq(s []interface{}) []interface{} {
+	b := s[len(s)-1]
+	a := s[len(s)-2]
+	s = s[:len(s)-2]
+	s = append(s, a.(int) == b.(int))
+	return s
 }
 
-func (s *Stack) Not() {
-	a := s.Pop()
-	s.Push(!a.(bool))
+func Not(s []interface{}) []interface{} {
+	a := s[len(s)-1]
+	s = s[:len(s)-1]
+	s = append(s, !a.(bool))
+	return s
 }

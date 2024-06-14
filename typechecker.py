@@ -296,6 +296,12 @@ def typecheck(tree, stack=[], should_exit=True):
     assert_type(tree, "first", quote_type(tree, tree.location), quote)
     stack = typecheck(quote.effect, stack)
     return stack
+  if tree.type == TreeType.PrintType:
+    assert_enough_args(tree, 1, len(stack))
+    type = stack.pop()
+    print(f"(type?) {tree.location} {type}")
+    stack.append(type)
+    return stack
   if tree.type == TreeType.Expr:
     for node in tree.nodes:
       stack = typecheck(node, stack)
