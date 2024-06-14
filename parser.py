@@ -6,17 +6,22 @@ class TreeType(Enum):
   PushInt = auto()
   PushBool = auto()
   PushChar = auto()
+  PushList = auto()
   Add = auto()
+  Sub = auto()
+  Cons = auto()
   Eq = auto()
   PushQuote = auto()
   Eval = auto()
   Print = auto()
   Expr = auto()
   TypeCast = auto()
+  If = auto()
   Noop = auto()
 
 tree_to_name = {
   "Add": "+",
+  "Sub": "-",
   "Eq": "=",
   "Eval": "~",
   "Print": "print",
@@ -47,12 +52,18 @@ def parse_atom(tokens):
       return Tree(TreeType.PushBool, [first.value], first.location), tokens[1:]
     if first.value == "+":
       return Tree(TreeType.Add, [], first.location), tokens[1:]
+    if first.value == "-":
+      return Tree(TreeType.Sub, [], first.location), tokens[1:]
+    if first.value == "<:":
+      return Tree(TreeType.Cons, [], first.location), tokens[1:]
     if first.value == "=":
       return Tree(TreeType.Eq, [], first.location), tokens[1:]
     if first.value == "~":
       return Tree(TreeType.Eval, [], first.location), tokens[1:]
     if first.value == "print":
       return Tree(TreeType.Print, [], first.location), tokens[1:]
+    if first.value == "if":
+      return Tree(TreeType.If, [], first.location), tokens[1:]
     if first.value == "define":
       name = tokens[1]
       is_ = tokens[2]
@@ -76,6 +87,12 @@ def parse_atom(tokens):
       print(f"{first.location} PARSE ERROR: Unterminated quote definition")
       exit(1)
     return Tree(TreeType.PushQuote, [body], first.location), tokens[1:]
+  if first.type == TokenType.OpenBracket:
+    body, tokens = parse_expr(tokens[1:])
+    if tokens[0].type != TokenType.CloseBracket:
+      print(f"{first.location} PARSE ERROR: Unterminated list definition")
+      exit(1)
+    return Tree(TreeType.PushList, [body], first.location), tokens[1:]
   return None, tokens
 
 def parse_expr(tokens):

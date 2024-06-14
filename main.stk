@@ -1,6 +1,7 @@
 
-define num as
-  1 'a' +
-end
-
-num print
+{
+  True
+  {2}
+  {3}
+  if
+} ~ print

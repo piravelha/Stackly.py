@@ -16,8 +16,12 @@ class Kind(Enum):
   Bool = auto()
   Char = auto()
   Quote = auto()
+  List = auto()
   Var = auto()
   Multi = auto()
+
+def pretty_var(var):
+  return "abcdefghijklmnopqrstuvwxyz"[int(var[1:])] if int(var[1:]) < 26 else var
 
 @dataclass
 class Type:
@@ -29,12 +33,14 @@ class Type:
   ]
   location: Location
   def __repr__(self):
+    if self.type == Kind.List:
+      return f"{self.effect} {self.type.name}"
     if self.type == Kind.Quote:
       return f"{{{self.effect}}}"
     if self.type == Kind.Var:
-      return self.effect
+      return pretty_var(self.effect)
     if self.type == Kind.Multi:
-      return f"..{self.effect}"
+      return f"..{pretty_var(self.effect)}"
     return self.type.name
 
 def int_type(loc) -> Type:
@@ -55,6 +61,13 @@ def char_type(loc) -> Type:
   return Type(
     Kind.Char,
     None,
+    loc,
+  )
+
+def list_type(elem, loc) -> Type:
+  return Type(
+    Kind.List,
+    elem,
     loc,
   )
 
@@ -100,7 +113,7 @@ def unify_effects(
       a_pops = a_pops[len(env[b_.effect]):]
       continue
     if not a_pops:
-      break
+      return None, env
     a_ = a_pops[0]
     c, env = unify(a_, b_, env)
     if not c:
@@ -117,7 +130,7 @@ def unify_effects(
       a_pushes = a_pushes[len(env[b_.effect]):]
       continue
     if not a_pushes:
-      break
+      return None, env
     a_ = a_pushes[0]
     c, env = unify(a_, b_, env)
     if not c:
@@ -137,6 +150,13 @@ def unify(
     return a, env
   if a.type != b.type:
     return None, env
+  if a.type == Kind.List:
+    a_elem = a.effect
+    b_elem = b.effect
+    c, env = unify(a_elem, b_elem, env)
+    if not c:
+      return None, env
+    return Type(Kind.List, c, a.location), env
   if a.type == Kind.Quote:
     a_eff = a.effect
     b_eff = b.effect
@@ -145,6 +165,8 @@ def unify(
       b_eff,
       env,
     )
+    if not eff:
+      return None, env
     return Type(a.type, eff, a.location), env
   return a, env
 
@@ -241,10 +263,31 @@ def effect_of(tree, pops=[], pushes=[]):
       [char_type(tree.location)],
     )
     return sequence_effects([Effect(pops, pushes), effect])
-  if tree.type == TreeType.Add:
+  if tree.type == TreeType.PushList:
+    elem = new_var(tree.location)
+    lstack = typecheck(tree.nodes[0])
+    for t in lstack:
+      c, _ = unify(t, elem)
+      if not c:
+        print(f"{t.location} TYPE ERROR: Attempting to create a list of different types")
+        exit(1)
+      elem = c
+    effect = Effect(
+      [],
+      [list_type(elem, tree.location)],
+    )
+    return sequence_effects([Effect(pops, pushes), effect])
+  if tree.type in [TreeType.Add, TreeType.Sub]:
     effect = Effect(
       [int_type(tree.location), int_type(tree.location)],
       [int_type(tree.location)],
+    )
+    return sequence_effects([Effect(pops, pushes), effect])
+  if tree.type == TreeType.Cons:
+    a = new_var(tree.location)
+    effect = Effect(
+      [a, list_type(a, tree.location)],
+      [list_type(a, tree.location)],
     )
     return sequence_effects([Effect(pops, pushes), effect])
   if tree.type == TreeType.Eq:
@@ -272,14 +315,27 @@ def effect_of(tree, pops=[], pushes=[]):
     b = new_multi(tree.location)
     effect = Effect(
       [
+        a,
         quote_type(Effect(
           [a],
           [b],
         ), tree.location),
-        a,
       ],
       [b],
     )
+    return sequence_effects([Effect(pops, pushes), effect])
+  if tree.type == TreeType.If:
+    a = new_multi(tree.location)
+    b = new_multi(tree.location)
+    q = quote_type(Effect([a], [b]), tree.location)
+    effect = Effect(
+      [a, bool_type(tree.location), q, q],
+      [b],
+    )
+    print(pops, pushes)
+    print(effect)
+    print(sequence_effects([Effect(pops, pushes), effect]))
+    print("-"*55)
     return sequence_effects([Effect(pops, pushes), effect])
   if tree.type == TreeType.Expr:
     for node in tree.nodes:
@@ -288,6 +344,32 @@ def effect_of(tree, pops=[], pushes=[]):
       pushes = effect.pushes
     return Effect(pops, pushes)
   assert False
+
+def eval_quote(stack, quote):
+  env = {}
+  u, env = unify_effects(Effect(stack, []), Effect(quote.effect.pops, []))
+  print(quote)
+  print(env)
+  print("-"*50)
+
+  if not u:
+    print(f"{quote.location} TYPE ERROR: Unification of types failed during evaluation of quote, expected stack to be '{quote.effect.pops}', but was '{stack}'")
+    exit(1)
+  u = [apply_env(v, env) for v in u.pops]
+  for i, pop in enumerate(u):
+    s = stack.pop()
+    c, env = unify(pop, s, env)
+    if not c:
+      print(f"{s.location} TYPE ERROR: Unification of types failed during evaluation of quote, expected argument #{i} of the stack to be '{pop}', but was '{s}'")
+      exit(1)
+  for push in quote.effect.pushes:
+    app = apply_env(push, env)
+    if isinstance(app, list):
+      stack.extend(app)
+    else:
+      stack.append(app)
+  return stack
+  
 
 def typecheck(tree, stack=[]):
   if tree.type == TreeType.Noop:
@@ -302,13 +384,31 @@ def typecheck(tree, stack=[]):
   if tree.type == TreeType.PushChar:
     stack.append(char_type(tree.location))
     return stack
-  if tree.type == TreeType.Add:
+  if tree.type == TreeType.PushList:
+    lstack = typecheck(tree.nodes[0], [])
+    elem = new_var(tree.location)
+    for t in lstack:
+      c, _ = unify(t, elem)
+      if not c:
+        print(f"{t.location} TYPE ERROR: Attempting to create a list with different types")
+        exit(1)
+      elem = c
+    stack.append(list_type(elem, tree.location))
+    return stack
+  if tree.type in [TreeType.Add, TreeType.Sub]:
     assert_enough_args(tree, 2, len(stack))
     b = stack.pop()
     a = stack.pop()
     assert_type(tree, "first", int_type(tree.location), a)
     assert_type(tree, "second", int_type(tree.location), b)
     stack.append(int_type(tree.location))
+    return stack
+  if tree.type == TreeType.Cons:
+    assert_enough_args(tree, 2, len(stack))
+    b = stack.pop()
+    a = stack.pop()
+    assert_type(tree, "first", list_type(a, tree.location), b)
+    stack.append(b)
     return stack
   if tree.type == TreeType.Eq:
     assert_enough_args(tree, 2, len(stack))
@@ -321,6 +421,17 @@ def typecheck(tree, stack=[]):
     assert_enough_args(tree, 1, len(stack))
     stack.pop()
     return stack
+  if tree.type == TreeType.If:
+    assert_enough_args(tree, 3, len(stack))
+    c = stack.pop()
+    b = stack.pop()
+    a = stack.pop()
+    e = Effect([new_multi(tree.location)], [new_multi(tree.location)])
+    assert_type(tree, "first", bool_type(tree.location), a)
+    assert_type(tree, "second", quote_type(e, tree.location), b)
+    assert_type(tree, "third", b, c)
+    stack = eval_quote(stack, b)
+    return stack
   if tree.type == TreeType.PushQuote:
     effect = effect_of(tree.nodes[0])
     stack.append(Type(Kind.Quote, effect, tree.location))
@@ -328,21 +439,8 @@ def typecheck(tree, stack=[]):
   if tree.type == TreeType.Eval:
     assert_enough_args(tree, 1, len(stack))
     quote = stack.pop()
-    assert_type(tree, "first", quote, quote_type(Effect([new_multi(tree.location)], [new_multi(tree.location)]), tree.location))
-    env = {}
-    u, env = unify_effects(Effect(stack, []), Effect(quote.effect.pops, []))
-    u = [apply_env(v, env) for v in u.pops]
-    for pop in u:
-      s = stack.pop()
-      c, env = unify(pop, s, env)
-      if not c:
-        assert False
-    for push in quote.effect.pushes:
-      app = apply_env(push, env)
-      if isinstance(app, list):
-        stack.extend(app)
-      else:
-        stack.append(app)
+    assert_type(tree, "first", quote_type(Effect([new_multi(tree.location)], [new_multi(tree.location)]), tree.location), quote)
+    stack = eval_quote(stack, quote)
     return stack
   if tree.type == TreeType.Expr:
     for node in tree.nodes:

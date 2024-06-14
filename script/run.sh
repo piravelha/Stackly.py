@@ -1,4 +1,3 @@
 clear
 python compiler.py && \
-gcc -o out out.c lib.c && \
-./out
+go build -o main main.go lib.go

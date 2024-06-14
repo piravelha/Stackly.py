@@ -8,8 +8,8 @@ class TokenType(Enum):
   Word = auto()
   OpenQuote = auto()
   CloseQuote = auto()
-  OpenArray = auto()
-  CloseArray = auto()
+  OpenBracket = auto()
+  CloseBracket = auto()
 
 @dataclass
 class Location:
@@ -42,30 +42,42 @@ def lex(file: str, code: str) -> list[Token]:
       line += 1
       code = code[1:]
       continue
+    loc = Location(file, line, col)
     if n := re.findall(int_p, code):
       col += len(n[0])
       code = code[len(n[0]):]
-      tokens.append(Token(TokenType.Int, n[0], Location(file, line, col)))
+      tokens.append(Token(TokenType.Int, n[0], loc))
       continue
     if c := re.findall(r"^'([^'])'", code):
       col += len(c[0]) + 2
       code = code[len(c[0])+2:]
-      tokens.append(Token(TokenType.Char, c[0], Location(file, line, col)))
+      tokens.append(Token(TokenType.Char, c[0], loc))
       continue
     if w := re.findall(r"^([^\s\d{}\[\]]+)", code):
       col += len(w[0])
       code = code[len(w[0]):]
-      tokens.append(Token(TokenType.Word, w[0], Location(file, line, col)))
+      tokens.append(Token(TokenType.Word, w[0], loc))
       continue
     if re.findall(r"^(\{)", code):
       col += 1
       code = code[1:]
-      tokens.append(Token(TokenType.OpenQuote, "{", Location(file, line, col)))
+      tokens.append(Token(TokenType.OpenQuote, "{", loc))
       continue
     if re.findall(r"^(\})", code):
       col += 1
       code = code[1:]
-      tokens.append(Token(TokenType.CloseQuote, "}", Location(file, line, col)))
+      tokens.append(Token(TokenType.CloseQuote, "}", loc))
       continue
+    if re.findall(r"^(\[)", code):
+      col += 1
+      code = code[1:]
+      tokens.append(Token(TokenType.OpenBracket, "[", loc))
+      continue
+    if re.findall(r"^(\])", code):
+      col += 1
+      code = code[1:]
+      tokens.append(Token(TokenType.CloseBracket, "]", loc))
+      continue
+  
   return tokens
 
